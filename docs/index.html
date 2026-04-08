@@ -3,206 +3,59 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BIST Balonları — Borsa İstanbul Görselleştirme</title>
-<meta name="description" content="BIST100 hisselerini canlı balon görselleştirmesiyle takip edin">
+<title>BIST Balonları — Borsa İstanbul</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg:      #080c14;
-    --bg2:     #0d1220;
-    --panel:   #111827;
-    --border:  #1e2d45;
-    --accent:  #e8001d;
-    --accent2: #ff4d6d;
-    --green:   #00e676;
-    --green2:  #00c853;
-    --red:     #ff1744;
-    --red2:    #d50000;
-    --text:    #e2e8f0;
-    --muted:   #4a5568;
-  }
-
-  * { margin:0; padding:0; box-sizing:border-box; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    height: 100vh;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* ── HEADER ── */
-  header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 20px;
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    flex-shrink: 0;
-  }
-
-  .logo { display:flex; align-items:center; gap:10px; }
-
-  .logo-icon {
-    width:36px; height:36px;
-    background: var(--accent);
-    border-radius: 8px;
-    display:flex; align-items:center; justify-content:center;
-    font-family:'Bebas Neue',cursive;
-    font-size:18px; color:white; letter-spacing:1px;
-  }
-
-  .logo-text {
-    font-family:'Bebas Neue',cursive;
-    font-size:22px; letter-spacing:3px;
-    background: linear-gradient(135deg,#fff 0%,var(--accent2) 100%);
-    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
-  }
-
-  .logo-sub { font-size:11px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
-
-  .controls { display:flex; align-items:center; gap:8px; }
-
-  .period-group {
-    display:flex;
-    background:var(--panel);
-    border:1px solid var(--border);
-    border-radius:8px;
-    overflow:hidden;
-  }
-
-  .period-btn {
-    padding:7px 14px;
-    font-family:'Space Mono',monospace;
-    font-size:11px; font-weight:700;
-    color:var(--muted);
-    background:transparent; border:none; cursor:pointer;
-    transition:all 0.2s; letter-spacing:1px;
-  }
-  .period-btn:hover { color:var(--text); }
-  .period-btn.active { background:var(--accent); color:white; }
-
-  .icon-btn {
-    width:36px; height:36px;
-    background:var(--panel); border:1px solid var(--border);
-    border-radius:8px; cursor:pointer; color:var(--muted); font-size:15px;
-    display:flex; align-items:center; justify-content:center;
-    transition:all 0.2s; text-decoration:none;
-  }
-  .icon-btn:hover { color:var(--text); border-color:var(--accent); }
-  .icon-btn.spinning { animation:spin 0.8s linear infinite; }
-  @keyframes spin { to { transform:rotate(360deg); } }
-
-  /* ── STATUS BAR ── */
-  .status-bar {
-    display:flex; align-items:center; gap:16px;
-    padding:6px 20px;
-    background:var(--bg2); border-bottom:1px solid var(--border);
-    flex-shrink:0;
-    font-family:'Space Mono',monospace; font-size:11px;
-    flex-wrap:wrap;
-  }
-
-  .status-item { display:flex; align-items:center; gap:5px; color:var(--muted); }
-  .s-dot { width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.3} }
-  .s-val { color:var(--text); font-weight:700; }
-  .s-up  { color:var(--green); }
-  .s-dn  { color:var(--red); }
-
-  .legend {
-    margin-left:auto; display:flex; align-items:center; gap:12px;
-  }
-  .leg-item { display:flex; align-items:center; gap:4px; font-size:10px; color:var(--muted); }
-  .leg-dot  { width:9px; height:9px; border-radius:50%; }
-
-  /* ── CANVAS ── */
-  #canvas-wrap { flex:1; position:relative; overflow:hidden; }
-  #bsvg        { width:100%; height:100%; }
-
-  .bubble-g { cursor:pointer; }
-  .bubble-g circle { stroke-width:1.5; }
-  .bubble-g:hover circle { stroke-width:3; filter:brightness(1.15); }
-
-  .b-ticker, .b-pct {
-    font-family:'Space Mono',monospace; font-weight:700;
-    fill:rgba(255,255,255,.95); text-anchor:middle;
-    pointer-events:none; dominant-baseline:middle;
-  }
-  .b-pct { fill:rgba(255,255,255,.8); }
-
-  /* ── TOOLTIP ── */
-  #tt {
-    position:absolute;
-    background:var(--panel); border:1px solid var(--border);
-    border-radius:10px; padding:14px 16px;
-    pointer-events:none; display:none;
-    min-width:210px; z-index:100;
-    box-shadow:0 20px 40px rgba(0,0,0,.6);
-  }
-  .tt-name { font-family:'Bebas Neue',cursive; font-size:20px; letter-spacing:2px; margin-bottom:8px; }
-  .tt-row  { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--muted); margin-bottom:4px; }
-  .tt-val  { color:var(--text); font-family:'Space Mono',monospace; font-size:12px; }
-  .tt-g    { color:var(--green); }
-  .tt-r    { color:var(--red); }
-  .tt-div  { border:none; border-top:1px solid var(--border); margin:8px 0; }
-
-  /* ── LOADING / ERROR ── */
-  .overlay {
-    position:absolute; inset:0;
-    display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-    background:var(--bg); z-index:50; gap:16px;
-  }
-  .ld-ring {
-    width:56px;height:56px;
-    border:3px solid var(--border); border-top-color:var(--accent);
-    border-radius:50%; animation:spin .8s linear infinite;
-  }
-  .ld-title { font-family:'Bebas Neue',cursive; font-size:18px; letter-spacing:3px; color:var(--muted); }
-  .ld-sub   { font-size:12px; color:var(--muted); font-family:'Space Mono',monospace; }
-
-  .err-icon { font-size:44px; }
-  .err-text { font-family:'Bebas Neue',cursive; font-size:22px; letter-spacing:2px; color:var(--muted); }
-  .err-sub  { font-size:13px; color:var(--muted); text-align:center; max-width:420px; line-height:1.7; }
-
-  .action-btn {
-    background:var(--accent); color:white; border:none;
-    border-radius:8px; padding:10px 24px;
-    font-family:'Space Mono',monospace; font-size:12px; font-weight:700;
-    cursor:pointer; letter-spacing:1px; transition:opacity .2s;
-  }
-  .action-btn:hover { opacity:.85; }
-
-  /* ── CONFIG MODAL ── */
-  #cfg-modal {
-    position:fixed; inset:0; background:rgba(0,0,0,.7);
-    display:none; align-items:center; justify-content:center; z-index:200;
-  }
-  #cfg-modal.open { display:flex; }
-  .cfg-box {
-    background:var(--panel); border:1px solid var(--border);
-    border-radius:14px; padding:28px; width:480px; max-width:95vw;
-  }
-  .cfg-title { font-family:'Bebas Neue',cursive; font-size:22px; letter-spacing:2px; margin-bottom:16px; }
-  .cfg-label { font-size:12px; color:var(--muted); margin-bottom:6px; font-family:'Space Mono',monospace; }
-  .cfg-input {
-    width:100%; background:var(--bg); border:1px solid var(--border);
-    border-radius:8px; padding:10px 14px; color:var(--text);
-    font-family:'Space Mono',monospace; font-size:13px; outline:none;
-  }
-  .cfg-input:focus { border-color:var(--accent); }
-  .cfg-hint { font-size:11px; color:var(--muted); margin-top:6px; line-height:1.6; }
-  .cfg-row  { display:flex; gap:10px; margin-top:18px; }
+  :root { --bg:#080c14;--bg2:#0d1220;--panel:#111827;--border:#1e2d45;--accent:#e8001d;--accent2:#ff4d6d;--green:#00e676;--red:#ff1744;--text:#e2e8f0;--muted:#4a5568; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+  header{display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;}
+  .logo{display:flex;align-items:center;gap:10px;}
+  .logo-icon{width:36px;height:36px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:18px;color:white;}
+  .logo-text{font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:3px;background:linear-gradient(135deg,#fff 0%,var(--accent2) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .logo-sub{font-size:11px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;}
+  .controls{display:flex;align-items:center;gap:8px;}
+  .period-group{display:flex;background:var(--panel);border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+  .period-btn{padding:7px 14px;font-family:'Space Mono',monospace;font-size:11px;font-weight:700;color:var(--muted);background:transparent;border:none;cursor:pointer;transition:all 0.2s;letter-spacing:1px;}
+  .period-btn:hover{color:var(--text);}
+  .period-btn.active{background:var(--accent);color:white;}
+  .icon-btn{width:36px;height:36px;background:var(--panel);border:1px solid var(--border);border-radius:8px;cursor:pointer;color:var(--muted);font-size:15px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;text-decoration:none;}
+  .icon-btn:hover{color:var(--text);border-color:var(--accent);}
+  .icon-btn.spinning{animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .status-bar{display:flex;align-items:center;gap:16px;padding:6px 20px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;font-family:'Space Mono',monospace;font-size:11px;flex-wrap:wrap;}
+  .si{display:flex;align-items:center;gap:5px;color:var(--muted);}
+  .s-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .sv{color:var(--text);font-weight:700;}.sup{color:var(--green);}.sdn{color:var(--red);}
+  .legend{margin-left:auto;display:flex;align-items:center;gap:12px;}
+  .li{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);}
+  .ld{width:9px;height:9px;border-radius:50%;}
+  #wrap{flex:1;position:relative;overflow:hidden;}
+  #bsvg{width:100%;height:100%;}
+  .bg{cursor:pointer;}
+  .bg circle{stroke-width:1.5;}
+  .bg:hover circle{stroke-width:3;filter:brightness(1.15);}
+  .bt,.bp{font-family:'Space Mono',monospace;font-weight:700;fill:rgba(255,255,255,.95);text-anchor:middle;pointer-events:none;dominant-baseline:middle;}
+  .bp{fill:rgba(255,255,255,.8);}
+  #tt{position:absolute;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px;pointer-events:none;display:none;min-width:210px;z-index:100;box-shadow:0 20px 40px rgba(0,0,0,.6);}
+  .tn{font-family:'Bebas Neue',cursive;font-size:20px;letter-spacing:2px;margin-bottom:8px;}
+  .trow{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin-bottom:4px;}
+  .tv{color:var(--text);font-family:'Space Mono',monospace;font-size:12px;}
+  .tg{color:var(--green);}.tr2{color:var(--red);}
+  .tdiv{border:none;border-top:1px solid var(--border);margin:8px 0;}
+  .ov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);z-index:50;gap:16px;}
+  .lr{width:56px;height:56px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+  .lt{font-family:'Bebas Neue',cursive;font-size:18px;letter-spacing:3px;color:var(--muted);}
+  .ls{font-size:12px;color:var(--muted);font-family:'Space Mono',monospace;}
+  .ei{font-size:44px;}.et{font-family:'Bebas Neue',cursive;font-size:22px;letter-spacing:2px;color:var(--muted);}
+  .es{font-size:13px;color:var(--muted);text-align:center;max-width:420px;line-height:1.7;}
+  .ab{background:var(--accent);color:white;border:none;border-radius:8px;padding:10px 24px;font-family:'Space Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:opacity .2s;}
+  .ab:hover{opacity:.85;}
 </style>
 </head>
 <body>
-
 <header>
   <div class="logo">
     <div class="logo-icon">B</div>
@@ -213,378 +66,181 @@
   </div>
   <div class="controls">
     <div class="period-group">
-      <button class="period-btn active" data-p="1d">1G</button>
-      <button class="period-btn" data-p="5d">1H</button>
-      <button class="period-btn" data-p="1mo">1A</button>
-      <button class="period-btn" data-p="3mo">3A</button>
-      <button class="period-btn" data-p="ytd">YBB</button>
+      <button class="period-btn active" data-p="1day">1G</button>
+      <button class="period-btn" data-p="1week">1H</button>
+      <button class="period-btn" data-p="1month">1A</button>
+      <button class="period-btn" data-p="3month">3A</button>
+      <button class="period-btn" data-p="1year">1Y</button>
     </div>
     <button class="icon-btn" id="refreshBtn" title="Yenile">↻</button>
-    <button class="icon-btn" id="cfgBtn" title="API Ayarları">⚙</button>
-    <a class="icon-btn" href="https://github.com/YOUR_USERNAME/bist-bubbles" target="_blank" title="GitHub">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
-      </svg>
-    </a>
   </div>
 </header>
-
 <div class="status-bar">
-  <div class="status-item"><div class="s-dot"></div><span>BIST</span></div>
-  <div class="status-item">Yükselen: <span class="s-val s-up" id="s-up">—</span></div>
-  <div class="status-item">Düşen: <span class="s-val s-dn" id="s-dn">—</span></div>
-  <div class="status-item">Ortalama: <span class="s-val" id="s-avg">—</span></div>
-  <div class="status-item">Güncelleme: <span class="s-val" id="s-time">—</span></div>
+  <div class="si"><div class="s-dot"></div><span>BIST</span></div>
+  <div class="si">Yükselen: <span class="sv sup" id="s-up">—</span></div>
+  <div class="si">Düşen: <span class="sv sdn" id="s-dn">—</span></div>
+  <div class="si">Ortalama: <span class="sv" id="s-avg">—</span></div>
+  <div class="si">Güncelleme: <span class="sv" id="s-time">—</span></div>
   <div class="legend">
-    <div class="leg-item"><div class="leg-dot" style="background:#00c853"></div>Yükselen</div>
-    <div class="leg-item"><div class="leg-dot" style="background:#ff1744"></div>Düşen</div>
-    <div class="leg-item" style="font-size:10px">Boyut = Piyasa Değeri</div>
+    <div class="li"><div class="ld" style="background:#00c853"></div>Yükselen</div>
+    <div class="li"><div class="ld" style="background:#ff1744"></div>Düşen</div>
+    <div class="li">Boyut = Piyasa Değeri</div>
   </div>
 </div>
-
-<div id="canvas-wrap">
+<div id="wrap">
   <svg id="bsvg"></svg>
-
-  <div class="overlay" id="loading">
-    <div class="ld-ring"></div>
-    <div class="ld-title">VERİLER YÜKLENİYOR</div>
-    <div class="ld-sub" id="ld-sub">API bağlantısı kuruluyor...</div>
+  <div class="ov" id="loading">
+    <div class="lr"></div>
+    <div class="lt">VERİLER YÜKLENİYOR</div>
+    <div class="ls">Twelve Data · BIST Hisseleri</div>
   </div>
-
-  <div class="overlay" id="error" style="display:none;">
-    <div class="err-icon">📡</div>
-    <div class="err-text">API Bağlantısı Yok</div>
-    <div class="err-sub" id="err-sub">
-      Proxy API'ye bağlanılamadı. Lütfen ⚙ ayarlardan API URL'ini kontrol edin.<br><br>
-      <code style="font-family:monospace;font-size:12px;color:var(--accent)"></code>
-    </div>
-    <button class="action-btn" id="retryBtn">↻ TEKRAR DENE</button>
-    <button class="action-btn" style="background:var(--panel);border:1px solid var(--border)" id="openCfgBtn">⚙ API AYARLA</button>
+  <div class="ov" id="error" style="display:none">
+    <div class="ei">📡</div>
+    <div class="et">Veri Alınamadı</div>
+    <div class="es" id="err-msg">API bağlantısı kurulamadı.</div>
+    <button class="ab" id="retryBtn">↻ TEKRAR DENE</button>
   </div>
-
   <div id="tt">
-    <div class="tt-name" id="tt-sym">—</div>
-    <hr class="tt-div">
-    <div class="tt-row"><span>Fiyat</span><span class="tt-val" id="tt-price">—</span></div>
-    <div class="tt-row"><span>Değişim</span><span class="tt-val" id="tt-chg">—</span></div>
-    <div class="tt-row"><span>Hacim</span><span class="tt-val" id="tt-vol">—</span></div>
-    <div class="tt-row"><span>Piyasa Değeri</span><span class="tt-val" id="tt-mcap">—</span></div>
-    <div class="tt-row"><span>52H Aralık</span><span class="tt-val" id="tt-rng">—</span></div>
+    <div class="tn" id="tt-sym">—</div>
+    <hr class="tdiv">
+    <div class="trow"><span>Fiyat</span><span class="tv" id="tt-price">—</span></div>
+    <div class="trow"><span>Değişim</span><span class="tv" id="tt-chg">—</span></div>
+    <div class="trow"><span>Hacim</span><span class="tv" id="tt-vol">—</span></div>
+    <div class="trow"><span>Piyasa Değeri</span><span class="tv" id="tt-mcap">—</span></div>
+    <div class="trow"><span>52H Aralık</span><span class="tv" id="tt-rng">—</span></div>
   </div>
 </div>
-
-<!-- CONFIG MODAL -->
-<div id="cfg-modal">
-  <div class="cfg-box">
-    <div class="cfg-title">⚙ API Ayarları</div>
-    <div class="cfg-label">PROXY API URL</div>
-    <input class="cfg-input" id="cfg-url" type="url" placeholder="https://your-api.vercel.app">
-    <div class="cfg-hint">
-      Vercel'e deploy ettiğin Python API'nin URL'ini buraya yaz.<br>
-      Örnek: <code style="color:var(--accent)">https://bist-bubbles-api.vercel.app</code><br><br>
-      Deploy etmek için: <code style="color:var(--accent)">vercel deploy</code> (proje kökünde)
-    </div>
-    <div class="cfg-row">
-      <button class="action-btn" id="cfg-save">KAYDET ve YENİLE</button>
-      <button class="action-btn" style="background:var(--panel);border:1px solid var(--border);color:var(--muted)" id="cfg-cancel">İPTAL</button>
-    </div>
-  </div>
-</div>
-
 <script>
-// ═══════════════════════════════════════════════════════
-// CONFIG — API URL (localStorage'dan ya da default)
-// ═══════════════════════════════════════════════════════
-function getApiUrl() {
-  return localStorage.getItem('bist_api_url') || '';
-}
+const API_KEY = "f7c3819954a24ce5902511bc52574644";
+const STOCKS = ["THYAO","GARAN","AKBNK","YKBNK","SISE","KCHOL","SAHOL","TCELL","BIMAS","ASELS","FROTO","TOASO","TUPRS","ARCLK","EREGL","PETKM","ENKAI","SODA","KOZAL","KOZAA","MAVI","CCOLA","TTKOM","PGSUS","TAVHL","MGROS","ULKER","DOHOL","EKGYO","ISCTR","HALKB","VAKBN","LOGO","AEFES","OTKAR","TRKCM","VESTL","GUBRF","DOAS","HEKTS"];
+let currentPeriod="1day",stockData=[],simulation=null;
 
-let currentPeriod = '1d';
-let stockData     = [];
-let simulation    = null;
+async function loadData(){
+  showLoading(true);hideError();
+  try{
+    const syms=STOCKS.join(",");
+    const url=`https://api.twelvedata.com/quote?symbol=${syms}&exchange=BIST&dp=2&apikey=${API_KEY}`;
+    const r=await fetch(url);
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    const raw=await r.json();
+    if(raw.status==="error")throw new Error(raw.message||"API hatası");
 
-// ═══════════════════════════════════════════════════════
-// DATA FETCH
-// ═══════════════════════════════════════════════════════
-async function fetchQuotes() {
-  const base = getApiUrl();
-  if (!base) throw new Error('NO_API_URL');
-  const r = await fetch(`${base}/api/quotes`);
-  if (!r.ok) throw new Error(`Quote HTTP ${r.status}`);
-  const j = await r.json();
-  return j.data || [];
-}
+    const entries=raw.symbol?[[raw.symbol,raw]]:Object.entries(raw);
+    stockData=entries.map(([sym,item])=>{
+      if(item.status==="error"||!item.close)return null;
+      const close=parseFloat(item.close||0);
+      const vol=parseFloat(item.volume||0);
+      return{
+        symbol:sym.replace(":BIST",""),
+        name:item.name||sym,
+        price:close,
+        change:parseFloat(item.change||0),
+        pct:parseFloat(item.percent_change||0),
+        marketCap:close*vol>0?close*vol:1e9,
+        volume:vol,
+        low52:parseFloat(item.fifty_two_week?.low||0),
+        high52:parseFloat(item.fifty_two_week?.high||0),
+      };
+    }).filter(d=>d&&d.price>0);
 
-async function fetchSpark(period) {
-  const base = getApiUrl();
-  if (!base) throw new Error('NO_API_URL');
-  const r = await fetch(`${base}/api/spark?period=${period}`);
-  if (!r.ok) throw new Error(`Spark HTTP ${r.status}`);
-  const j = await r.json();
-  return j.data || [];
-}
-
-function calcChanges(sparkData) {
-  const out = {};
-  for (const item of sparkData) {
-    const sym  = item.symbol;
-    const resp = item.response?.[0];
-    if (!resp?.close?.length) { out[sym] = null; continue; }
-    const closes = resp.close.filter(v => v != null);
-    if (closes.length < 2) { out[sym] = null; continue; }
-    out[sym] = ((closes.at(-1) - closes[0]) / closes[0]) * 100;
-  }
-  return out;
-}
-
-async function loadData() {
-  showLoading(true);
-  hideError();
-
-  try {
-    const [quotes, sparks] = await Promise.all([fetchQuotes(), fetchSpark(currentPeriod)]);
-    const pctMap = calcChanges(sparks);
-
-    stockData = quotes
-      .map(q => {
-        const sym  = q.symbol;            // THYAO.IS
-        const base = sym.replace('.IS','');
-        const pct  = currentPeriod === '1d'
-          ? (q.regularMarketChangePercent ?? 0)
-          : (pctMap[sym] ?? q.regularMarketChangePercent ?? 0);
-        return {
-          symbol:         base,
-          fullSymbol:     sym,
-          name:           q.shortName || base,
-          price:          q.regularMarketPrice   || 0,
-          change:         q.regularMarketChange  || 0,
-          changePercent:  q.regularMarketChangePercent || 0,
-          pct,
-          marketCap:      q.marketCap             || 1e9,
-          volume:         q.regularMarketVolume   || 0,
-          low52:          q.fiftyTwoWeekLow       || 0,
-          high52:         q.fiftyTwoWeekHigh      || 0,
-        };
-      })
-      .filter(d => d.price > 0);
-
-    showLoading(false);
-    updateStatus();
-    renderBubbles();
-    document.getElementById('s-time').textContent = new Date().toLocaleTimeString('tr-TR');
-  } catch(err) {
-    showLoading(false);
-    showError(err.message);
+    showLoading(false);updateStatus();renderBubbles();
+    document.getElementById("s-time").textContent=new Date().toLocaleTimeString("tr-TR");
+  }catch(err){
+    showLoading(false);showError(err.message);
   }
 }
 
-// ═══════════════════════════════════════════════════════
-// RENDER
-// ═══════════════════════════════════════════════════════
-function bubbleColor(p) {
-  if (p >=  5) return '#00c853';
-  if (p >=  3) return '#00e676';
-  if (p >=  1) return '#69f0ae';
-  if (p >=  0) return '#b9f6ca';
-  if (p > -1)  return '#ffcdd2';
-  if (p > -3)  return '#ef9a9a';
-  if (p > -5)  return '#ff1744';
-  return '#b71c1c';
+function bubbleColor(p){
+  if(p>=5)return"#00c853";if(p>=3)return"#00e676";if(p>=1)return"#69f0ae";
+  if(p>=0)return"#b9f6ca";if(p>-1)return"#ffcdd2";if(p>-3)return"#ef9a9a";
+  if(p>-5)return"#ff1744";return"#b71c1c";
 }
 
-function strokeColor(p) { return p >= 0 ? '#00e676' : '#ff1744'; }
-
-function bubbleR(cap, scale) {
-  return Math.max(22, Math.min(90, Math.sqrt(cap / 1e9) * scale));
-}
-
-function renderBubbles() {
-  const svg = d3.select('#bsvg');
-  svg.selectAll('*').remove();
-
-  const W = svg.node().clientWidth;
-  const H = svg.node().clientHeight;
-  if (!W || !H || !stockData.length) return;
-
-  const maxCap = d3.max(stockData, d => d.marketCap) || 1;
-  const scale  = (Math.min(W, H) / 1.8) / Math.sqrt(maxCap / 1e9);
-
-  const nodes = stockData.map(d => ({
-    ...d,
-    r: bubbleR(d.marketCap, scale),
-    x: W / 2 + (Math.random() - .5) * 300,
-    y: H / 2 + (Math.random() - .5) * 300,
-  }));
-
-  if (simulation) simulation.stop();
-  simulation = d3.forceSimulation(nodes)
-    .force('charge',    d3.forceManyBody().strength(6))
-    .force('center',    d3.forceCenter(W / 2, H / 2).strength(0.05))
-    .force('collision', d3.forceCollide().radius(d => d.r + 2).strength(0.9))
-    .force('x',         d3.forceX(W / 2).strength(0.03))
-    .force('y',         d3.forceY(H / 2).strength(0.03))
-    .alphaDecay(0.015)
-    .on('tick', tick);
-
-  const g = svg.selectAll('.bubble-g')
-    .data(nodes).join('g').attr('class', 'bubble-g')
-    .on('mousemove', (e, d) => showTT(e, d))
-    .on('mouseleave', hideTT)
-    .on('click', (e, d) => window.open(`https://finance.yahoo.com/quote/${d.fullSymbol}`, '_blank'));
-
-  g.append('circle')
-    .attr('r', d => d.r)
-    .attr('fill',         d => bubbleColor(d.pct))
-    .attr('stroke',       d => strokeColor(d.pct))
-    .attr('stroke-opacity', .6)
-    .attr('fill-opacity', .88);
-
-  g.append('circle')
-    .attr('r', d => d.r * .7)
-    .attr('fill', 'none')
-    .attr('stroke', 'rgba(255,255,255,.07)')
-    .attr('stroke-width', 1);
-
-  g.append('text').attr('class', 'b-ticker')
-    .attr('y', d => d.r > 35 ? -9 : 0)
-    .attr('font-size', d => Math.max(8, Math.min(d.r * .35, 18)))
-    .text(d => d.symbol);
-
-  g.filter(d => d.r > 30).append('text').attr('class', 'b-pct')
-    .attr('y', 10)
-    .attr('font-size', d => Math.max(7, Math.min(d.r * .26, 13)))
-    .text(d => (d.pct >= 0 ? '+' : '') + d.pct.toFixed(2) + '%');
-
-  function tick() {
-    nodes.forEach(d => {
-      d.x = Math.max(d.r + 2, Math.min(W - d.r - 2, d.x));
-      d.y = Math.max(d.r + 2, Math.min(H - d.r - 2, d.y));
-    });
-    g.attr('transform', d => `translate(${d.x},${d.y})`);
+function renderBubbles(){
+  const svg=d3.select("#bsvg");svg.selectAll("*").remove();
+  const W=svg.node().clientWidth,H=svg.node().clientHeight;
+  if(!W||!H||!stockData.length)return;
+  const maxCap=d3.max(stockData,d=>d.marketCap)||1;
+  const scale=(Math.min(W,H)/1.8)/Math.sqrt(maxCap/1e9);
+  const nodes=stockData.map(d=>({...d,r:Math.max(24,Math.min(90,Math.sqrt(d.marketCap/1e9)*scale)),x:W/2+(Math.random()-.5)*300,y:H/2+(Math.random()-.5)*300}));
+  if(simulation)simulation.stop();
+  simulation=d3.forceSimulation(nodes)
+    .force("charge",d3.forceManyBody().strength(6))
+    .force("center",d3.forceCenter(W/2,H/2).strength(0.05))
+    .force("collision",d3.forceCollide().radius(d=>d.r+2).strength(0.9))
+    .force("x",d3.forceX(W/2).strength(0.03))
+    .force("y",d3.forceY(H/2).strength(0.03))
+    .alphaDecay(0.015).on("tick",tick);
+  const g=svg.selectAll(".bg").data(nodes).join("g").attr("class","bg")
+    .on("mousemove",(e,d)=>showTT(e,d)).on("mouseleave",hideTT)
+    .on("click",(e,d)=>window.open(`https://finance.yahoo.com/quote/${d.symbol}.IS`,"_blank"));
+  g.append("circle").attr("r",d=>d.r).attr("fill",d=>bubbleColor(d.pct))
+    .attr("stroke",d=>d.pct>=0?"#00e676":"#ff1744").attr("stroke-opacity",.6).attr("fill-opacity",.88);
+  g.append("circle").attr("r",d=>d.r*.7).attr("fill","none").attr("stroke","rgba(255,255,255,.07)").attr("stroke-width",1);
+  g.append("text").attr("class","bt").attr("y",d=>d.r>35?-9:0).attr("font-size",d=>Math.max(8,Math.min(d.r*.35,18))).text(d=>d.symbol);
+  g.filter(d=>d.r>30).append("text").attr("class","bp").attr("y",10)
+    .attr("font-size",d=>Math.max(7,Math.min(d.r*.26,13)))
+    .text(d=>(d.pct>=0?"+":"")+d.pct.toFixed(2)+"%");
+  function tick(){
+    nodes.forEach(d=>{d.x=Math.max(d.r+2,Math.min(W-d.r-2,d.x));d.y=Math.max(d.r+2,Math.min(H-d.r-2,d.y));});
+    g.attr("transform",d=>`translate(${d.x},${d.y})`);
   }
 }
 
-// ═══════════════════════════════════════════════════════
-// TOOLTIP
-// ═══════════════════════════════════════════════════════
-const tt = document.getElementById('tt');
-function showTT(event, d) {
-  const cls = d.pct >= 0 ? 'tt-g' : 'tt-r';
-  const sgn = d.pct >= 0 ? '+' : '';
-  document.getElementById('tt-sym').textContent   = `${d.symbol} — ${d.name}`;
-  document.getElementById('tt-sym').style.color   = d.pct >= 0 ? '#00e676' : '#ff1744';
-  document.getElementById('tt-price').textContent = `₺${d.price.toLocaleString('tr-TR',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
-  const ce = document.getElementById('tt-chg');
-  ce.textContent = `${sgn}${d.pct.toFixed(2)}%`;
-  ce.className   = 'tt-val ' + cls;
-  document.getElementById('tt-vol').textContent   = fmtNum(d.volume);
-  document.getElementById('tt-mcap').textContent  = fmtNum(d.marketCap, true);
-  document.getElementById('tt-rng').textContent   = `₺${d.low52.toFixed(1)} – ₺${d.high52.toFixed(1)}`;
-
-  const rect = document.getElementById('canvas-wrap').getBoundingClientRect();
-  let x = event.clientX - rect.left + 15;
-  let y = event.clientY - rect.top  + 15;
-  tt.style.display = 'block';
-  if (x + tt.offsetWidth  > rect.width)  x -= tt.offsetWidth  + 30;
-  if (y + tt.offsetHeight > rect.height) y -= tt.offsetHeight + 30;
-  tt.style.left = x + 'px';
-  tt.style.top  = y + 'px';
+const tt=document.getElementById("tt");
+function showTT(event,d){
+  document.getElementById("tt-sym").textContent=d.symbol+(d.name&&d.name!==d.symbol?" — "+d.name:"");
+  document.getElementById("tt-sym").style.color=d.pct>=0?"#00e676":"#ff1744";
+  document.getElementById("tt-price").textContent="₺"+d.price.toLocaleString("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:2});
+  const ce=document.getElementById("tt-chg");
+  ce.textContent=(d.pct>=0?"+":"")+d.pct.toFixed(2)+"%";ce.className="tv "+(d.pct>=0?"tg":"tr2");
+  document.getElementById("tt-vol").textContent=fmtNum(d.volume);
+  document.getElementById("tt-mcap").textContent=fmtNum(d.marketCap,true);
+  document.getElementById("tt-rng").textContent="₺"+d.low52.toFixed(2)+" – ₺"+d.high52.toFixed(2);
+  const rect=document.getElementById("wrap").getBoundingClientRect();
+  let x=event.clientX-rect.left+15,y=event.clientY-rect.top+15;
+  tt.style.display="block";
+  if(x+tt.offsetWidth>rect.width)x-=tt.offsetWidth+30;
+  if(y+tt.offsetHeight>rect.height)y-=tt.offsetHeight+30;
+  tt.style.left=x+"px";tt.style.top=y+"px";
 }
-function hideTT() { tt.style.display = 'none'; }
+function hideTT(){tt.style.display="none";}
 
-// ═══════════════════════════════════════════════════════
-// STATUS
-// ═══════════════════════════════════════════════════════
-function updateStatus() {
-  if (!stockData.length) return;
-  const up  = stockData.filter(d => d.pct >= 0).length;
-  const dn  = stockData.length - up;
-  const avg = stockData.reduce((s,d) => s + d.pct, 0) / stockData.length;
-  document.getElementById('s-up').textContent  = up;
-  document.getElementById('s-dn').textContent  = dn;
-  const ae = document.getElementById('s-avg');
-  ae.textContent = (avg >= 0 ? '+' : '') + avg.toFixed(2) + '%';
-  ae.className   = 's-val ' + (avg >= 0 ? 's-up' : 's-dn');
+function updateStatus(){
+  if(!stockData.length)return;
+  const up=stockData.filter(d=>d.pct>=0).length;
+  const avg=stockData.reduce((s,d)=>s+d.pct,0)/stockData.length;
+  document.getElementById("s-up").textContent=up;
+  document.getElementById("s-dn").textContent=stockData.length-up;
+  const ae=document.getElementById("s-avg");
+  ae.textContent=(avg>=0?"+":"")+avg.toFixed(2)+"%";
+  ae.className="sv "+(avg>=0?"sup":"sdn");
 }
 
-// ═══════════════════════════════════════════════════════
-// UI HELPERS
-// ═══════════════════════════════════════════════════════
-function showLoading(v, msg) {
-  document.getElementById('loading').style.display = v ? 'flex' : 'none';
-  if (msg) document.getElementById('ld-sub').textContent = msg;
-}
-function showError(msg) {
-  document.getElementById('error').style.display = 'flex';
-  if (msg === 'NO_API_URL') {
-    document.getElementById('err-sub').innerHTML =
-      '⚙ API URL\'i ayarlanmamış.<br>Sağ üstteki <b>⚙</b> butonundan Vercel URL\'ini gir.';
-  }
-}
-function hideError() { document.getElementById('error').style.display = 'none'; }
-
-function fmtNum(n, currency = false) {
-  if (!n) return '—';
-  const p = currency ? '₺' : '';
-  if (n >= 1e12) return p + (n/1e12).toFixed(2) + 'T';
-  if (n >= 1e9)  return p + (n/1e9).toFixed(2)  + 'Mn';
-  if (n >= 1e6)  return p + (n/1e6).toFixed(2)  + 'Mn';
-  if (n >= 1e3)  return p + (n/1e3).toFixed(1)  + 'K';
-  return p + n.toFixed(0);
+function showLoading(v){document.getElementById("loading").style.display=v?"flex":"none";}
+function showError(msg){document.getElementById("error").style.display="flex";document.getElementById("err-msg").textContent=msg||"Bilinmeyen hata";}
+function hideError(){document.getElementById("error").style.display="none";}
+function fmtNum(n,currency=false){
+  if(!n)return"—";const p=currency?"₺":"";
+  if(n>=1e12)return p+(n/1e12).toFixed(2)+"T";if(n>=1e9)return p+(n/1e9).toFixed(2)+"Mn";
+  if(n>=1e6)return p+(n/1e6).toFixed(2)+"Mn";if(n>=1e3)return p+(n/1e3).toFixed(1)+"K";
+  return p+n.toFixed(0);
 }
 
-// ═══════════════════════════════════════════════════════
-// EVENTS
-// ═══════════════════════════════════════════════════════
-document.querySelectorAll('.period-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    currentPeriod = btn.dataset.p;
-    loadData();
+document.querySelectorAll(".period-btn").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    document.querySelectorAll(".period-btn").forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");currentPeriod=btn.dataset.p;loadData();
   });
 });
-
-document.getElementById('refreshBtn').addEventListener('click', () => {
-  const b = document.getElementById('refreshBtn');
-  b.classList.add('spinning');
-  loadData().finally(() => b.classList.remove('spinning'));
+document.getElementById("refreshBtn").addEventListener("click",()=>{
+  const b=document.getElementById("refreshBtn");b.classList.add("spinning");
+  loadData().finally(()=>b.classList.remove("spinning"));
 });
-
-// Config modal
-function openCfg() {
-  document.getElementById('cfg-url').value = getApiUrl();
-  document.getElementById('cfg-modal').classList.add('open');
-}
-document.getElementById('cfgBtn').addEventListener('click', openCfg);
-document.getElementById('openCfgBtn').addEventListener('click', openCfg);
-document.getElementById('cfg-cancel').addEventListener('click', () => {
-  document.getElementById('cfg-modal').classList.remove('open');
-});
-document.getElementById('cfg-save').addEventListener('click', () => {
-  const url = document.getElementById('cfg-url').value.trim().replace(/\/$/, '');
-  if (url) localStorage.setItem('bist_api_url', url);
-  document.getElementById('cfg-modal').classList.remove('open');
-  loadData();
-});
-
-document.getElementById('retryBtn').addEventListener('click', loadData);
-
+document.getElementById("retryBtn").addEventListener("click",loadData);
 let resizeT;
-window.addEventListener('resize', () => {
-  clearTimeout(resizeT);
-  resizeT = setTimeout(() => { if (stockData.length) renderBubbles(); }, 300);
-});
-
-// ═══════════════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════════════
-if (!getApiUrl()) {
-  showLoading(false);
-  showError('NO_API_URL');
-} else {
-  loadData();
-}
+window.addEventListener("resize",()=>{clearTimeout(resizeT);resizeT=setTimeout(()=>{if(stockData.length)renderBubbles();},300);});
+loadData();
 </script>
 </body>
 </html>

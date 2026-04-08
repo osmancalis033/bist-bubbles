@@ -1,17 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
+import os
 
 app = FastAPI()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["GET"],
-    allow_headers=["*"],
-)
-
-HEADERS = {"User-Agent": "Mozilla/5.0"}
+API_KEY = os.environ.get("TWELVE_API_KEY", "")
 
 STOCKS = [
     "THYAO","GARAN","AKBNK","YKBNK","SISE","KCHOL","SAHOL","TCELL",
@@ -23,26 +18,52 @@ STOCKS = [
 
 @app.get("/api/quotes")
 async def quotes():
-    syms = ",".join(s + ".IS" for s in STOCKS)
-    url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={syms}"
-    async with httpx.AsyncClient(timeout=15) as c:
-        r = await c.get(url, headers=HEADERS)
+    if not API_KEY:
+        raise HTTPException(500, "API key eksik")
+    
+    symbols = ",".join(STOCKS)
+    url = f"https://api.twelvedata.com/quote?symbol={symbols}&exchange=BIST&apikey={API_KEY}"
+    
+    async with httpx.AsyncClient(timeout=20) as c:
+        r = await c.get(url)
         if r.status_code != 200:
-            raise HTTPException(502, "Yahoo error")
-    return {"data": r.json().get("quoteResponse", {}).get("result", [])}
+            raise HTTPException(502, f"TwelveData {r.status_code}")
+        raw = r.json()
+
+    result = []
+    # Tek hisse dict, çok hisse dict of dicts döner
+    items = raw if isinstance(raw, dict) and "symbol" not in raw else {STOCKS[0]: raw}
+
+    for sym, item in items.items():
+        try:
+            if item.get("status") == "error":
+                continue
+            close   = float(item.get("close", 0) or 0)
+            open_   = float(item.get("open", close) or close)
+            chg     = float(item.get("change", 0) or 0)
+            chg_pct = float(item.get("percent_change", 0) or 0)
+            vol     = float(item.get("volume", 0) or 0)
+
+            result.append({
+                "symbol":                     sym + ".IS",
+                "shortName":                  item.get("name", sym),
+                "regularMarketPrice":         close,
+                "regularMarketChange":        chg,
+                "regularMarketChangePercent": chg_pct,
+                "marketCap":                  close * vol if vol > 0 else 1e9,
+                "regularMarketVolume":        vol,
+                "fiftyTwoWeekLow":            float(item.get("fifty_two_week", {}).get("low", 0) or 0),
+                "fiftyTwoWeekHigh":           float(item.get("fifty_two_week", {}).get("high", 0) or 0),
+            })
+        except:
+            continue
+
+    return {"data": [x for x in result if x["regularMarketPrice"] > 0]}
 
 @app.get("/api/spark")
 async def spark(period: str = "1d"):
-    MAP = {"1d":("1d","5m"),"5d":("5d","1d"),"1mo":("1mo","1d"),"3mo":("3mo","1wk"),"ytd":("ytd","1mo")}
-    rng, itv = MAP.get(period, ("1d","5m"))
-    syms = ",".join(s + ".IS" for s in STOCKS)
-    url = f"https://query1.finance.yahoo.com/v8/finance/spark?symbols={syms}&range={rng}&interval={itv}"
-    async with httpx.AsyncClient(timeout=20) as c:
-        r = await c.get(url, headers=HEADERS)
-        if r.status_code != 200:
-            raise HTTPException(502, "Yahoo error")
-    return {"data": r.json().get("spark", {}).get("result", [])}
+    return {"data": []}
 
 @app.get("/health")
-async def health():
+def health():
     return {"status": "ok"}
